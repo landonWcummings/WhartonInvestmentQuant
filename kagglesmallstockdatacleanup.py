@@ -1,4 +1,5 @@
 import pandas as pd
+from sklearn.preprocessing import StandardScaler
 #dataset from here
 #  https://www.kaggle.com/datasets/mattiuzc/stock-exchange-data/data?select=indexProcessed.csv
 rawdata = pd.read_csv(r"C:\Users\lndnc\Downloads\kagglestockdata\indexProcessed.csv")
@@ -38,16 +39,25 @@ rawdata[f'nextval'] = grouped_data['Close'].shift(-1)
 expel = rawdata[rawdata[f'lag_{lag}'].isna() | rawdata[f'nextval'].isna()]
 rawdata = rawdata[~rawdata.index.isin(expel.index)]
 
+#convert cols to category type for XGB
+for col in rawdata.select_dtypes(include=['object']).columns:
+    rawdata.loc[:, col] = rawdata[col].astype('category')
+
+
 #seperate a evaluation set to test the model
 evaldata = rawdata[rawdata["Y"] > 2018]
 rawdata = rawdata[~rawdata.index.isin(evaldata.index)]
 
 #drop not needed columns
-rawdata = rawdata.drop(["CloseUSD","Date","Y","a","b","Adj Close","Volume"],axis=1)
-evaldata = evaldata.drop(["CloseUSD","Date","Y","a","b","Adj Close","Volume"],axis=1)
+rawdata = rawdata.drop(["CloseUSD","Date","Y","a","b","Adj Close","Volume","Index"],axis=1)
+evaldata = evaldata.drop(["CloseUSD","Date","Y","a","b","Adj Close","Volume","Index"],axis=1)
+
+if True:
+    rawdata = rawdata.drop(["Low","Open","High"],axis=1)
+    evaldata = evaldata.drop(["Low","Open","High"],axis=1)
 
 
-
+print(rawdata.dtypes)
 
 print(rawdata.columns)
 print(rawdata.head())
