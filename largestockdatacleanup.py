@@ -51,7 +51,7 @@ def modify(data):
     data = data.drop(["Date","Y","a","b","Volume","OpenInt"],axis=1)
     
 
-    if True:
+    if False:
         data = data.drop(["Low","Open","High"],axis=1)
 
     for col in data.columns:

@@ -18,13 +18,14 @@ score = -1
 
 class XGB:
     def __init__(self,
-                X_train, y_train, X_test,y_test,savepath,optunadepth=20,params= []):
+                X_train, y_train, X_test,y_test,savepath,groups,optunadepth=20,params= []):
         
         self.optunadepth = optunadepth
         self.X_train = X_train
         self.y_train = y_train
         self.X_test = X_test
         self.y_test = y_test
+        self.groups = groups
         self.savepath = savepath
         self.params = params
 
@@ -38,13 +39,13 @@ class XGB:
             def objective(trial):
                 # Define the search space for hyperparameters
                 params = {
-                    'learning_rate': trial.suggest_float('learning_rate', 0.005, 0.1, log=True),  
-                    'max_depth': trial.suggest_int('max_depth', 4, 10),
+                    'learning_rate': trial.suggest_float('learning_rate', 0.001, 0.1, log=True),  
+                    'max_depth': trial.suggest_int('max_depth', 4, 30),
                     'subsample': trial.suggest_float('subsample', 0.6, 1.0),  
                     'colsample_bytree': trial.suggest_float('colsample_bytree', 0.6, 1.0), 
                     'reg_alpha': trial.suggest_float('reg_alpha', 1e-4, 10, log=True),  
                     'reg_lambda': trial.suggest_float('reg_lambda', 1e-4, 10, log=True), 
-                    'n_estimators': trial.suggest_int('n_estimators', 100, 500),
+                    'n_estimators': trial.suggest_int('n_estimators', 50, 1000),
                     'enable_categorical': False
                 }
                 model = XGBRegressor(**params)
@@ -89,13 +90,15 @@ class XGB:
 
         #cool visualization and P/L thing
         results = pd.DataFrame({
+            'ETF' : self.groups,
             'Actual': self.y_test,
             'Predicted': predictions
         })
 
 
-        results['Close_t'] = results['Actual'].shift(1)
-        results = results.dropna() 
+        results['Close_t'] = results.groupby('ETF')['Actual'].shift(1)
+
+        results = results.dropna(subset=['Close_t'])
 
         results['Price Change'] = results['Actual'] - results['Close_t']
 
@@ -111,7 +114,7 @@ class XGB:
         print(f'Max PL: {results["PL"].max()}')
         print(f'Min PL: {results["PL"].min()}')
 
-        PL_base = results["Price Change"].sum()
+        PL_base = ((results["Price Change"] / self.X_test['Close']) * 100).sum()
         PL_sum = results["PL"].sum()
         print(f'Base Profit/Loss : {PL_base}')
         print(f'Profit/Loss: {PL_sum}')
