@@ -39,13 +39,15 @@ class XGB:
             def objective(trial):
                 # Define the search space for hyperparameters
                 params = {
-                    'learning_rate': trial.suggest_float('learning_rate', 0.001, 0.1, log=True),  
-                    'max_depth': trial.suggest_int('max_depth', 4, 30),
+                    'learning_rate': trial.suggest_float('learning_rate', 0.0008, 0.1, log=True),  
+                    'max_depth': trial.suggest_int('max_depth', 4, 50),
                     'subsample': trial.suggest_float('subsample', 0.6, 1.0),  
                     'colsample_bytree': trial.suggest_float('colsample_bytree', 0.6, 1.0), 
                     'reg_alpha': trial.suggest_float('reg_alpha', 1e-4, 10, log=True),  
                     'reg_lambda': trial.suggest_float('reg_lambda', 1e-4, 10, log=True), 
                     'n_estimators': trial.suggest_int('n_estimators', 50, 1000),
+                    'tree_method': 'hist',
+                    'device':'cuda',
                     'enable_categorical': False
                 }
                 model = XGBRegressor(**params)
@@ -88,21 +90,24 @@ class XGB:
 
         predictions = xgb_model.predict(self.X_test)
 
+
         #cool visualization and P/L thing
         results = pd.DataFrame({
-            'ETF' : self.groups,
+            'tag' : self.groups,
             'Actual': self.y_test,
             'Predicted': predictions
         })
+        results = results.round(4)
 
-
-        results['Close_t'] = results.groupby('ETF')['Actual'].shift(1)
+        results['Close_t'] = results.groupby('tag')['Actual'].shift(1)
 
         results = results.dropna(subset=['Close_t'])
 
         results['Price Change'] = results['Actual'] - results['Close_t']
 
         results['Predicted Change'] = results['Predicted'] - results['Close_t']
+        results['Predicted Direction'] =  np.sign(results['Predicted Change'])
+    
 
         results['Direction Correct'] = np.sign(results['Predicted Change']) == np.sign(results['Price Change'])
         #for the PL calculator - I just assume the bot either buys or sells the stock at the end of each trading day and holds it 1 trading day
@@ -110,7 +115,9 @@ class XGB:
         results['PL'] = np.where(results['Direction Correct'], results['Price Change'].abs(), -1 * results['Price Change'].abs())
         results['PL'] = (results['PL'] /self.X_test['Close']) * 100
         
-
+        results = results.round(4)
+        print(f'Percent predicted increase: {(results["Predicted Direction"].sum() / results.shape[0]).round(6) * 100}')
+        print(f'Number of negative predictions: {(results['Predicted Direction'] == -1).sum()}')
         print(f'Max PL: {results["PL"].max()}')
         print(f'Min PL: {results["PL"].min()}')
 
@@ -119,8 +126,8 @@ class XGB:
         print(f'Base Profit/Loss : {PL_base}')
         print(f'Profit/Loss: {PL_sum}')
         print(f'Market differential: {PL_sum - PL_base}')
-        partial_sum = results['PL'][:10].sum()  
-        print(f'Partial PL sum (first 100 rows): {partial_sum}')
+        #partial_sum = results['PL'][:10].sum()  
+        #print(f'Partial PL sum (first 100 rows): {partial_sum}')
 
 
 
@@ -136,10 +143,10 @@ class XGB:
         combined_df = combined_df[~combined_df.index.isin(expel.index)]
         
         combined_df.to_csv(self.savepath, index=False)
-
-        xgb.plot_importance(xgb_model)
-        plt.show()
-        return xgb_model
+        
+        #xgb.plot_importance(xgb_model)
+        #plt.show()
+        return xgb_model, PL_sum-PL_base
 
 
 

@@ -3,7 +3,7 @@ from sklearn.preprocessing import StandardScaler
 #dataset from here
 #  https://www.kaggle.com/datasets/borismarjanovic/price-volume-data-for-all-us-stocks-etfs/data
 
-lag = 15
+lag = 5
 import pandas as pd
 import os
 import glob
@@ -14,17 +14,26 @@ output_folder1 = r'C:\Users\lndnc\Downloads\stockdataarchive\cleanedStocks'
 
 input_folder2 = r'C:\Users\lndnc\Downloads\stockdataarchive\ETFs'  
 output_folder2 = r'C:\Users\lndnc\Downloads\stockdataarchive\cleanedETFs'
+if not os.path.exists(output_folder1):
+    os.makedirs(output_folder1)
+if not os.path.exists(output_folder2):
+    os.makedirs(output_folder2)
 
 
 def modify(data):
-
-    #split appart date column
+    data = data.round(4)
+    
     split_columns = data["Date"].str.split("-", expand=True)
-    split_columns.columns = ["Y","a","b"] #ik its not used here but can be used
+    split_columns.columns = ["Y","Month","day"] #ik its not used here but can be used
     data = pd.concat([data, split_columns], axis=1)
 
+    #data['Date'] = pd.to_datetime(data['Date'])
+    #data['DayOfWeek'] = data['Date'].dt.day_name()
+    #day_mapping = {'Monday': 0,'Tuesday': 1,'Wednesday': 2,'Thursday': 3,'Friday': 4}
+    #data['DayOfWeek'] = data['DayOfWeek'].map(day_mapping)
+
     #make year column numbers
-    data["Y"] = pd.to_numeric(data["Y"], errors='coerce')
+    data["Month"] = pd.to_numeric(data["Month"], errors='coerce')
 
     #make lag number of lag rows
     for i in range(lag):
@@ -35,12 +44,12 @@ def modify(data):
     for lags in range(1, lag + 1): 
         data[f'lag_{lags}'] = data['Close'].shift(lags)
 
-    #make a nextval column --------- This is the Y (what we train to predict)
-    data[f'nextval'] = 0
-    data[f'nextval'] = data['Close'].shift(-1)
+    #make a targ column --------- This is the Y (what we train to predict)
+    data[f'targ'] = 0
+    data[f'targ'] = data['Close'].shift(-1)
 
     # drop all rows that have no lag values or no next val values (basically the first few and last 1 of every unique index)
-    expel = data[data[f'lag_{lag}'].isna() | data[f'nextval'].isna()]
+    expel = data[data[f'lag_{lag}'].isna() | data[f'targ'].isna()]
     data = data[~data.index.isin(expel.index)]
 
     #convert cols to category type for XGB
@@ -48,7 +57,7 @@ def modify(data):
         data.loc[:, col] = data[col].astype('category')    
 
     #drop not needed columns
-    data = data.drop(["Date","Y","a","b","Volume","OpenInt"],axis=1)
+    data = data.drop(["Date","Y","Month","day","Volume","OpenInt"],axis=1)
     
 
     if False:
@@ -58,12 +67,15 @@ def modify(data):
         if data[col].dtype == 'float64':
             data[col] = data[col].astype('float32')
 
+    data = data.round(4)
     return data
 
 
 
 sums =0
 count = 0
+
+"""
 for file_path in glob.glob(os.path.join(input_folder1, '*')):
     if os.path.getsize(file_path) > 2048:
         df = pd.read_csv(file_path)
@@ -77,7 +89,7 @@ for file_path in glob.glob(os.path.join(input_folder1, '*')):
 
         df.to_csv(output_file_path, index=False)
         sums -= 1
-
+"""
 for file_path in glob.glob(os.path.join(input_folder2, '*')):
     if os.path.getsize(file_path) > 2048:
         df = pd.read_csv(file_path)

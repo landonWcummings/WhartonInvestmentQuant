@@ -1,0 +1,28 @@
+Trying to beat the market
+
+
+Looking to use an ensemble to predict stock prices or wether to buy/sell and beat the market
+
+
+gen 1
+Time horizon 1 day
+XGB predicting exact prices - 5/10. Got some results but ultimately
+it failed to generalize and struggled with large datasets due to
+outliers(even with different eval functions). It potentially read 
+too much into the numbers rather than the change.
+
+gen 2
+XGB predicting %price change - 8/10. Much better generalization,
+I think the main reason for this is that it doesn't worry about
+the current price at all and only focuses on finding the % change.
+Also began passing the month and day of the week(they have a 
+relatively low F score). No returns on modern markets: time to 
+mix it up.
+
+gen 3
+scraping my own data using yfinance. Starting with russell 3000. 
+Exloring adding the following to the data - more lag collumns,
+label earnings dates/dividend dates, moving averages, PE ratio,
+sector, and/or any other indicator I can come up with.
+
+check out studies file
