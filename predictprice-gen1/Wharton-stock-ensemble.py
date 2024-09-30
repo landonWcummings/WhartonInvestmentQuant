@@ -19,11 +19,9 @@ del evaldata, traindata
 #XGBmodel = goXGBmodel.makemodel()
 
 
-# Set the folder path where your CSV files are located
 input_folder1 = r'C:\Users\lndnc\Downloads\stockdataarchive\cleanedETFs'
 input_folder2 = r'C:\Users\lndnc\Downloads\stockdataarchive\cleanedStocks'
 
-# Use glob to get all CSV file paths
 csv_files = glob.glob(os.path.join(input_folder1, '*'))
 
 i = 0

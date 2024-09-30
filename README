@@ -16,10 +16,12 @@ XGB predicting %price change - 8/10. Much better generalization,
 I think the main reason for this is that it doesn't worry about
 the current price at all and only focuses on finding the % change.
 Also began passing the month and day of the week(they have a 
-relatively low F score). No returns on modern markets: time to 
-mix it up.
+relatively low F score). Also introduced trades based on conviction
+(if the absolute value of the % change is greater than a limit) this
+led to better results but still not profitable. No returns on modern
+markets: time to mix it up.
 
-gen 3
+begin gen 3
 scraping my own data using yfinance. Starting with russell 3000. 
 Exloring adding the following to the data - more lag collumns,
 label earnings dates/dividend dates, moving averages, PE ratio,

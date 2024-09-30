@@ -79,7 +79,6 @@ equity_tickers = df[df['Asset Class'] == 'Equity']['Ticker'].tolist()
 
 
 base = r'C:\Users\lndnc\Downloads\YF\classic'
-stocklist = ["aapl","meta"]
 for ticker in tqdm.tqdm(equity_tickers, desc="Processing Tickers", unit="ticker"):
 
     data = find(ticker)
