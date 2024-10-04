@@ -16,9 +16,16 @@ from concurrent.futures import ProcessPoolExecutor
 
 def process_file(file_path):
     if os.path.getsize(file_path) > 2048:
-        df = pd.read_csv(file_path)
-        return df.drop("Event",axis=1)
-    return pd.DataFrame()  
+        df =  pd.read_csv(file_path)
+        
+        if 'Y' in df.columns:
+            split = df[df['Y'] <2021]
+            df = df[~df.index.isin(split.index)]
+            df = df.drop(["Y"],axis=1)
+        return df
+    else:
+        os.remove(file_path)
+        return pd.DataFrame()  
 
 
 if __name__ == '__main__':

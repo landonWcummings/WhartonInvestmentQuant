@@ -57,13 +57,13 @@ class XGB:
                     }
                 else:
                     params = {
-                        'learning_rate': trial.suggest_float('learning_rate', 0.002, 0.1, log=True),  
-                        'max_depth': trial.suggest_int('max_depth', 4, 20),
+                        'learning_rate': trial.suggest_float('learning_rate', 0.001, 0.1, log=True),  
+                        'max_depth': trial.suggest_int('max_depth', 4, 40),
                         'subsample': trial.suggest_float('subsample', 0.6, 1.0),  
                         'colsample_bytree': trial.suggest_float('colsample_bytree', 0.6, 1.0), 
                         'reg_alpha': trial.suggest_float('reg_alpha', 0.01, 10, log=True),  
                         'reg_lambda': trial.suggest_float('reg_lambda', 0.01, 10, log=True), 
-                        'n_estimators': trial.suggest_int('n_estimators', 50, 500)
+                        'n_estimators': trial.suggest_int('n_estimators', 50, 700)
                     }
 
                 #model = XGBRegressor(**params)
@@ -82,7 +82,7 @@ class XGB:
                     dtest = xgb.DMatrix(X_test_fold, label=y_test_fold)
 
                     # Train using xgb.train()
-                    model = xgb.train(params, dtrain, num_boost_round=params['n_estimators'])
+                    model = xgb.train(params, dtrain)
 
                     bpredictions = model.predict(dtest)
                     
@@ -145,7 +145,7 @@ class XGB:
         print(f'Market differential: {PL_sum - PL_base}')
 
 
-        results['Conviction'] = (results['Predicted'] < -0.1) | (results['Predicted'] > 0.3)
+        results['Conviction'] = (results['Predicted'] < -1) | (results['Predicted'] > 1)
         results['HCPL'] = np.where(
             results['Conviction'],  # If 'high conviction' is True
             np.where(results['is direction correct'], results['basePL'].abs(), -1 * results['basePL'].abs()),  # Apply logic when True
@@ -241,8 +241,8 @@ class XGB:
         
         combined_df.to_csv(self.savepath, index=False)
         
-        #xgb.plot_importance(xgb_model)
-        #plt.show()
+        xgb.plot_importance(xgb_model)
+        plt.show()
         return xgb_model, PL_sum-PL_base
 
 
@@ -282,32 +282,48 @@ class XGB:
         print(f'Profit/Loss: {PL_sum}')
         print(f'Market differential: {PL_sum - PL_base}')
         scores = []
-        #neglimit = [-1.2,-1.1,-1,-0.95,-0.9,-0.85,-0.8,-0.75,-0.7,-0.65-0.6]
-        #poslimit = [0,0.005,0.01,0.015,0.02,0.03]
+        neglimit = [-1.2,-1.1,-1,-0.95,-0.9,-0.85,-0.8,-0.75,-0.7,-0.65,-0.6]
+        poslimit = [0,0.02,0.05,0.07,0.1,0.15,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1,1.1,1.2]
         # best -0.8 , 0
-        neg, pos = -0.8,0
-
+        neg, pos = -1,1
+        
         results['Conviction'] = (results['Predicted'] < neg) | (results['Predicted'] > pos)
         results['HCPL'] = np.where(
             results['Conviction'],  # If 'high conviction' is True
             np.where(results['is direction correct'], results['basePL'].abs(), -1 * results['basePL'].abs()),  # Apply logic when True
             0 
         )
+        results['oppHCPL'] = np.where(
+            results['Conviction'],  # If 'high conviction' is True
+            results['basePL'],
+            0 
+        )
+        
         hpicks = results['Conviction'].sum()
         hscore = (results['HCPL'].sum())
-        print(f"High conviction returns vs baseline {hscore}")
+        
+        hbasescore = results['oppHCPL'].sum()
+        print(f"High conviction returns vs baseline {hscore - hbasescore} on {hpicks*100} volume")
 
 
-        results['notHCPL'] = np.where(
+        results['LCPL'] = np.where(
             ~results['Conviction'],  
             np.where(results['is direction correct'], results['basePL'].abs(), -1 * results['basePL'].abs()),  # Apply logic when True
             0 
         )
-        lpicks = (~results['Conviction']).sum()
-        lscore = (results['notHCPL'].sum() )
-        print(f"Low conviction returns vs baseline {-lscore}")
+        results['oppLCPL'] = np.where(
+            ~results['Conviction'],  # If 'high conviction' is True
+            results['basePL'],
+            0 
+        )
+        results.to_csv(self.savepath,index=False)
 
-        """
+        lpicks = (~results['Conviction']).sum()
+        lscore = (results['LCPL'].sum() )
+        lbasescore = results['oppLCPL'].sum()
+        print(f"Low conviction returns vs baseline {lscore- lbasescore} on {lpicks*100} volume")
+
+        
         for neg in neglimit:
             for pos in poslimit:
                 results['Conviction'] = (results['Predicted'] < neg) | (results['Predicted'] > pos)
@@ -316,8 +332,12 @@ class XGB:
                     np.where(results['is direction correct'], results['basePL'].abs(), -1 * results['basePL'].abs()),  # Apply logic when True
                     0 
                 )
-                picks = results['Conviction'].sum()
-                score = (results['HCPL'].sum() - picks/PL_base)
+                results['oppHCPL'] = np.where(
+                    results['Conviction'],  # If 'high conviction' is True
+                    results['basePL'],
+                    0 
+                )
+                score = (results['HCPL'].sum() - results['oppHCPL'].sum())
                 found = False
                 for i, (existing_neg, existing_pos, existing_score) in enumerate(scores):
                     if existing_neg == neg and existing_pos == pos:
@@ -331,23 +351,24 @@ class XGB:
                     scores.append((neg, pos, score))
 
         scores_df = pd.DataFrame(scores, columns=['Negative Limit', 'Positive Limit', 'Score'])
-        plt.figure(figsize=(10, 6))
-        plt.scatter(scores_df['Negative Limit'], scores_df['Positive Limit'], c=scores_df['Score'], cmap='coolwarm', s=100)
-        plt.colorbar(label='Score')
+        if iterations == 4:
+            plt.figure(figsize=(10, 6))
+            plt.scatter(scores_df['Negative Limit'], scores_df['Positive Limit'], c=scores_df['Score'], cmap='coolwarm', s=100)
+            plt.colorbar(label='Score')
 
-        # Add labels for each point
-        for i, row in scores_df.iterrows():
-            plt.text(row['Negative Limit'], row['Positive Limit'], f'{row["Score"]:.1f}', fontsize=9, ha='right')
+            # Add labels for each point
+            for i, row in scores_df.iterrows():
+                plt.text(row['Negative Limit'], row['Positive Limit'], f'{row["Score"]:.1f}', fontsize=9, ha='right')
 
-        # Set plot labels and title
-        plt.xlabel('Negative Limit')
-        plt.ylabel('Positive Limit')
-        plt.title('Scores based on Negative and Positive Limit Combinations')
-        plt.grid(True)
+            # Set plot labels and title
+            plt.xlabel('Negative Limit')
+            plt.ylabel('Positive Limit')
+            plt.title('Scores based on Negative and Positive Limit Combinations')
+            plt.grid(True)
 
-        # Show the plot
-        plt.show()
-        """
+            # Show the plot
+            plt.show()
+        
 
         hshort = (results['Predicted'] < -0.8).sum()
         hlong = (results['Predicted'] > 1).sum()
@@ -383,8 +404,7 @@ class XGB:
 
         print(f"---High conviction return differential {(hscore - lscore) - PL_base}")
 
-        return hscore - PL_base
-
+        return hscore - hbasescore
         #X_test_df = pd.DataFrame(x, columns=x.columns)
 
         
@@ -397,5 +417,5 @@ class XGB:
     def predict(self):
         print("predicting on dataset")
         #to do
-
+        
 

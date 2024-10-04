@@ -17,9 +17,10 @@ input_folder2 = r'C:\Users\lndnc\Downloads\stockdataarchive\cleanedStocks'
 input_folder3 = r'C:\Users\lndnc\Downloads\modernstockdata\cleaneddata'
 input_folder4 = r'C:\Users\lndnc\Downloads\YF\allrefined'
 input_folder5 = r'C:\Users\lndnc\Downloads\YF\timesplit\old'
+input_folder6 = r'C:\Users\lndnc\Downloads\YF\times\old'
 
 
-csv_files = glob.glob(os.path.join(input_folder5, '*'))
+csv_files = glob.glob(os.path.join(input_folder6, '*'))
 
 i = 0
 sums = 0
@@ -34,7 +35,7 @@ while i < 1000:
         
         df = pd.read_csv(file_path)
         if not df.empty:  
-            df = df.drop("Event",axis=1)
+            #df = df.drop("Event",axis=1)
             file_name = os.path.basename(file_path)
             file_name = file_name.replace('.csv.txt', '')
             df.insert(0, 'tag', file_name)
@@ -62,14 +63,16 @@ while i < 1000:
     #params =  {'learning_rate': 0.07875142331402334, 'max_depth': 18, 'subsample': 0.9393505448506804, 'colsample_bytree': 0.8134190497571698, 'reg_alpha': 0.0003866032766046731, 'reg_lambda': 0.0013868775148772124, 'n_estimators': 90}
     #stock params
     
-    params =   {'learning_rate': 0.0916698980449283, 'max_depth': 12, 'subsample': 0.6091942057222597, 'colsample_bytree': 0.6989063499375252, 'reg_alpha': 9.881257749980339, 'reg_lambda': 1.1196059853834948, 'n_estimators': 323}
+    params =   {'learning_rate': 0.051288347144786264, 'max_depth': 10, 'subsample': 0.8826703824895863, 'colsample_bytree': 0.9904704822382722, 'reg_alpha': 0.5418850241691432, 'reg_lambda': 0.2887563399981681, 'n_estimators': 204}
+    params['n_estimators'] = params['n_estimators'] +i
+    params['max_depth'] = params['max_depth'] + i//6
     savepath = r"C:\Users\lndnc\Downloads\stockdataarchive\visdata.csv"
     #scoredatalocation = r"c:\Users\lndnc\Downloads\stockdataarchive\allstocks.csv"
-    scoredatalocation = r"c:\Users\lndnc\Downloads\YF\timesplit\allnew.csv"
+    scoredatalocation = r"c:\Users\lndnc\Downloads\YF\times\allnew.csv"
     score = 0
     goXGBmodel = XGB(X_train=X_train,X_test=X_test,y_test=y_test,y_train=y_train,
                     savepath=savepath,groups=groups, 
-                    optunadepth=14,gpu=False,params=params)
+                    optunadepth=12,gpu=True,params=params)
     XGBmodel, score = goXGBmodel.makemodel()
     score2 = goXGBmodel.modscore(scoredatalocation,XGBmodel,iterations=i)
     sums += score
@@ -77,6 +80,7 @@ while i < 1000:
     i += 1
     print(f'AVG differential after {i} iterations: {(sums / i).round(4)}')
     print(f'AVG test differential after {i} iterations: {(sums2 / i).round(4)}')
+    print(params)
 
 print(f'Final avg differential: {sums / i}')
 print()
